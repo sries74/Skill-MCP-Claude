@@ -37,3 +37,10 @@ desktop.ini
 # Keep skills folder but ignore contents for git
 # skills/*
 # !skills/.gitkeep
+
+# Test artifacts
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
