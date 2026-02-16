@@ -54,13 +54,10 @@ skills-mcp/
 │   │   └── references/       # Optional reference docs
 │   └── another-skill/
 │       └── ...
-├── dist/                     # Built executable + assets
-│   ├── SkillsManager.exe
-│   ├── skills-manager.html
-│   └── README.md
-└── .vscode/                  # VS Code configuration
-    ├── settings.json
-    └── launch.json
+└── dist/                     # Built executable + assets
+    ├── SkillsManager.exe
+    ├── skills-manager.html
+    └── README.md
 ```
 
 ## Setup
@@ -201,7 +198,7 @@ Location: `%APPDATA%\Claude\claude_desktop_config.json`
   "mcpServers": {
     "skills": {
       "command": "python",
-      "args": ["C:/Users/Bbeie/skills-mcp/server.py"]
+      "args": ["C:/Users/<YOUR_USERNAME>/skills-mcp/server.py"]
     }
   }
 }

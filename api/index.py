@@ -19,6 +19,13 @@ except ImportError:
 BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
 
 
+def _check_blob_configured():
+    """Return an error dict if blob storage is not configured, else None."""
+    if not BLOB_TOKEN:
+        return {"error": "Blob storage not configured. Set BLOB_READ_WRITE_TOKEN."}
+    return None
+
+
 def sanitize_name(name: str) -> str:
     """Convert name to valid skill directory name."""
     return re.sub(r'[^a-z0-9-]', '-', name.lower().strip()).strip('-')
@@ -31,6 +38,9 @@ def get_skill_path(name: str, filename: str = 'SKILL.md') -> str:
 
 async def list_skills():
     """List all skills from blob storage."""
+    err = _check_blob_configured()
+    if err:
+        return err
     if not blob_list:
         return {"skills": [], "error": "Blob storage not configured"}
 
@@ -102,6 +112,9 @@ async def list_skills():
 
 async def get_skill(name: str):
     """Get a specific skill."""
+    err = _check_blob_configured()
+    if err:
+        return err, 500
     if not head:
         return {"error": "Blob storage not configured"}, 500
 
@@ -143,6 +156,9 @@ async def get_skill(name: str):
 
 async def create_skill(data: dict):
     """Create a new skill."""
+    err = _check_blob_configured()
+    if err:
+        return err, 500
     if not put:
         return {"error": "Blob storage not configured"}, 500
 
@@ -190,6 +206,9 @@ description: {description}
 
 async def update_skill(name: str, data: dict):
     """Update an existing skill."""
+    err = _check_blob_configured()
+    if err:
+        return err, 500
     if not put:
         return {"error": "Blob storage not configured"}, 500
 
@@ -231,6 +250,9 @@ description: {description}
 
 async def delete_skill(name: str):
     """Delete a skill."""
+    err = _check_blob_configured()
+    if err:
+        return err, 500
     if not blob_delete or not blob_list:
         return {"error": "Blob storage not configured"}, 500
 
