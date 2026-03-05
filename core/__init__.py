@@ -2,6 +2,10 @@
 # Shared functionality between API server and standalone app
 
 from .config import get_skills_dir, get_app_dir, find_claude_cli
+from .security import (
+    is_safe_skill_name, validate_skill_path, validate_file_path,
+    sanitize_description, validate_upload_file,
+)
 from .utils import sanitize_name, extract_description_from_frontmatter, parse_frontmatter
 from .skills import (
     list_all_skills,
@@ -25,6 +29,12 @@ __all__ = [
     'get_skills_dir',
     'get_app_dir',
     'find_claude_cli',
+    # Security
+    'is_safe_skill_name',
+    'validate_skill_path',
+    'validate_file_path',
+    'sanitize_description',
+    'validate_upload_file',
     # Utils
     'sanitize_name',
     'extract_description_from_frontmatter',

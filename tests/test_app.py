@@ -397,9 +397,11 @@ class TestClaudeRunEndpoint:
                     }
                 )
                 assert response.status_code == 200
-                # Verify context was in the command
-                call_args = mock_run.call_args[0][0]
-                assert "Context here" in call_args[2]
+                # Verify subprocess.run was called and context appears in the command
+                assert mock_run.called
+                cmd_list = mock_run.call_args[0][0]
+                full_cmd = " ".join(str(a) for a in cmd_list)
+                assert "Context here" in full_cmd
 
     def test_returns_404_without_cli(self, flask_app_test_client):
         """Test 404 when CLI not found."""

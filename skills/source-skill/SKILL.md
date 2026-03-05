@@ -1,3 +1,0 @@
-# Imported
-
-From folder.

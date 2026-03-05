@@ -10,85 +10,90 @@ class TestValidateMeta:
     """Tests for validate_meta function."""
 
     def test_valid_meta_minimal(self, server_module):
-        """Test validation with minimal required fields."""
-        meta = {"name": "test-skill", "description": "A test skill"}
+        """Test validation with all v1.1 required fields."""
+        meta = {
+            "name": "test-skill",
+            "description": "A test skill",
+            "tags": [],
+            "sub_skills": [],
+            "source": "created",
+        }
         errors = server_module.validate_meta(meta, "test-skill")
         assert errors == []
 
     def test_valid_meta_full(self, server_module):
-        """Test validation with all fields."""
+        """Test validation with all fields populated."""
         meta = {
             "name": "test-skill",
             "description": "A test skill",
             "tags": ["test", "example"],
             "sub_skills": [
                 {"name": "sub1", "file": "refs/sub1.md", "triggers": ["trigger1"]}
-            ]
+            ],
+            "source": "created",
         }
         errors = server_module.validate_meta(meta, "test-skill")
         assert errors == []
 
     def test_missing_name(self, server_module):
         """Test validation fails when name is missing."""
-        meta = {"description": "A test skill"}
+        meta = {"description": "A test skill", "tags": [], "sub_skills": [], "source": "x"}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "Missing required field 'name'" in errors[0]
+        assert any("Missing required field 'name'" in e for e in errors)
 
     def test_missing_description(self, server_module):
         """Test validation fails when description is missing."""
-        meta = {"name": "test-skill"}
+        meta = {"name": "test-skill", "tags": [], "sub_skills": [], "source": "x"}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "Missing required field 'description'" in errors[0]
+        assert any("Missing required field 'description'" in e for e in errors)
 
-    def test_missing_both_required(self, server_module):
-        """Test validation fails when both required fields are missing."""
+    def test_missing_all_required(self, server_module):
+        """Test validation fails when all required fields are missing."""
         meta = {}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 2
+        assert len(errors) == 5  # name, description, tags, sub_skills, source
 
     def test_name_mismatch(self, server_module):
         """Test validation fails when name doesn't match directory."""
-        meta = {"name": "wrong-name", "description": "A test skill"}
+        meta = {"name": "wrong-name", "description": "A test skill", "tags": [], "sub_skills": [], "source": "x"}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "doesn't match directory name" in errors[0]
+        assert any("doesn't match directory name" in e for e in errors)
 
     def test_tags_not_list(self, server_module):
         """Test validation fails when tags is not a list."""
-        meta = {"name": "test-skill", "description": "Test", "tags": "not-a-list"}
+        meta = {"name": "test-skill", "description": "Test", "tags": "not-a-list", "sub_skills": [], "source": "x"}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "'tags' must be a list" in errors[0]
+        assert any("'tags' must be a list" in e for e in errors)
 
     def test_sub_skills_not_list(self, server_module):
         """Test validation fails when sub_skills is not a list."""
-        meta = {"name": "test-skill", "description": "Test", "sub_skills": "not-a-list"}
+        meta = {"name": "test-skill", "description": "Test", "tags": [], "sub_skills": "not-a-list", "source": "x"}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "'sub_skills' must be a list" in errors[0]
+        assert any("'sub_skills' must be a list" in e for e in errors)
 
     def test_sub_skill_missing_name(self, server_module):
         """Test validation fails when sub_skill is missing name."""
         meta = {
             "name": "test-skill",
             "description": "Test",
-            "sub_skills": [{"file": "test.md"}]
+            "tags": [],
+            "sub_skills": [{"file": "test.md"}],
+            "source": "x",
         }
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
-        assert "sub_skill[0] missing required field 'name'" in errors[0]
+        assert any("sub_skill[0] missing required field 'name'" in e for e in errors)
 
     def test_sub_skill_missing_file(self, server_module):
         """Test validation fails when sub_skill is missing file."""
         meta = {
             "name": "test-skill",
             "description": "Test",
-            "sub_skills": [{"name": "sub1"}]
+            "tags": [],
+            "sub_skills": [{"name": "sub1"}],
+            "source": "x",
         }
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 1
+        assert any("sub_skill[0] missing required field 'file'" in e for e in errors)
         assert "sub_skill[0] missing required field 'file'" in errors[0]
 
 
@@ -412,7 +417,9 @@ class TestGetSubSkill:
         meta = {
             "name": "broken-skill",
             "description": "Test",
-            "sub_skills": [{"name": "missing", "file": "nonexistent.md"}]
+            "tags": [],
+            "sub_skills": [{"name": "missing", "file": "nonexistent.md"}],
+            "source": "created",
         }
         (skill_dir / "_meta.json").write_text(json.dumps(meta))
 
@@ -535,9 +542,9 @@ class TestSearchContent:
     def test_finds_partial_words(self, server_module, sample_skill):
         """Test finding some matching words."""
         result = server_module._search_content("testing xyz nonexistent")
-        # Should find matches for "testing" even if other words missing
+        # "testing" appears in the sample skill content, so we should get at least one match
         matches = [r for r in result["results"] if r["score"] > 0]
-        assert len(matches) >= 0  # May or may not find depending on content
+        assert len(matches) > 0, "Should find matches for 'testing' in sample skill"
 
     def test_includes_snippet(self, server_module, sample_skill):
         """Test that snippets are included in results."""

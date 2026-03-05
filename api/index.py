@@ -5,9 +5,12 @@ Uses Vercel Blob Storage for skill persistence
 
 from http.server import BaseHTTPRequestHandler
 import json
+import logging
 import os
 import re
 from urllib.parse import parse_qs, urlparse
+
+logger = logging.getLogger("skills-vercel")
 
 # Vercel Blob SDK
 try:
@@ -89,8 +92,8 @@ async def list_skills():
                                         break
                             except ValueError:
                                 pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to read SKILL.md for %s: %s", name, e)
 
             # Get _meta.json if exists
             meta_path = get_skill_path(name, '_meta.json')
@@ -101,8 +104,8 @@ async def list_skills():
                     with urlopen(blob_info['url']) as response:
                         meta = json.loads(response.read().decode('utf-8'))
                         skill_data.update(meta)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to read metadata for %s: %s", name, e)
 
             skill_data['file_count'] = len(skill_data['files'])
             skills.append(skill_data)
@@ -142,8 +145,8 @@ async def get_skill(name: str):
                 with urlopen(meta_info['url']) as response:
                     meta = json.loads(response.read().decode('utf-8'))
                     skill_data.update(meta)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to read metadata for %s: %s", name, e)
 
         # List all files
         result = blob_list(prefix=f"skills/{name}/", token=BLOB_TOKEN)

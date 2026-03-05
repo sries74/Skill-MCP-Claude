@@ -64,7 +64,8 @@ print("Hello, test!")
                 "file": "references/advanced.md",
                 "triggers": ["pytest", "unittest", "mock"]
             }
-        ]
+        ],
+        "source": "created",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -104,7 +105,10 @@ Just a basic skill.
 
     meta = {
         "name": "minimal-skill",
-        "description": "A minimal test skill"
+        "description": "A minimal test skill",
+        "tags": [],
+        "sub_skills": [],
+        "source": "created",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -142,7 +146,10 @@ def sample_skill_missing_skill_md(temp_skills_dir):
 
     meta = {
         "name": "no-skill-md",
-        "description": "Skill without SKILL.md"
+        "description": "Skill without SKILL.md",
+        "tags": [],
+        "sub_skills": [],
+        "source": "created",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -170,7 +177,9 @@ This skill has YAML frontmatter.
     meta = {
         "name": "frontmatter-skill",
         "description": "A skill with YAML frontmatter",
-        "tags": ["yaml", "frontmatter"]
+        "tags": ["yaml", "frontmatter"],
+        "sub_skills": [],
+        "source": "created",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -196,7 +205,8 @@ Building accessible HTML forms with validation.
         "sub_skills": [
             {"name": "react", "file": "references/react.md", "triggers": ["react form", "useForm"]},
             {"name": "validation", "file": "references/validation.md", "triggers": ["zod", "yup", "validate"]}
-        ]
+        ],
+        "source": "created",
     }
     (forms_dir / "_meta.json").write_text(json.dumps(forms_meta, indent=2), encoding="utf-8")
     refs = forms_dir / "references"
@@ -214,7 +224,9 @@ Building accessible HTML forms with validation.
     building_meta = {
         "name": "building",
         "description": "3D building and placement systems",
-        "tags": ["3d", "game-dev", "placement"]
+        "tags": ["3d", "game-dev", "placement"],
+        "sub_skills": [],
+        "source": "created",
     }
     (building_dir / "_meta.json").write_text(json.dumps(building_meta, indent=2), encoding="utf-8")
 
@@ -290,17 +302,21 @@ def mock_subprocess():
 def server_module(temp_skills_dir):
     """Import and configure the server module with test directory."""
     import server
+    import core.config as config
     from collections import deque
 
     # Save original values
     original_skills_dir = server.SKILLS_DIR
+    original_config_skills_dir = config._skills_dir
     original_index = server._INDEX
     original_content_index = server._CONTENT_INDEX
     original_file_mtimes = server._FILE_MTIMES
     original_usage_stats = server._USAGE_STATS.copy()
 
-    # Patch for testing
+    # Patch for testing — must patch both server.SKILLS_DIR and core.config._skills_dir
+    # so that core.security.validate_skill_path() resolves against the temp directory
     server.SKILLS_DIR = temp_skills_dir
+    config._skills_dir = temp_skills_dir
     server._INDEX = None
     server._CONTENT_INDEX = None
     server._FILE_MTIMES = {}
@@ -313,8 +329,12 @@ def server_module(temp_skills_dir):
 
     yield server
 
+    # Stop any background threads before restoring
+    server.shutdown()
+
     # Restore originals
     server.SKILLS_DIR = original_skills_dir
+    config._skills_dir = original_config_skills_dir
     server._INDEX = original_index
     server._CONTENT_INDEX = original_content_index
     server._FILE_MTIMES = original_file_mtimes

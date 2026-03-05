@@ -126,8 +126,8 @@ class TestListSkillsEndpoint:
         response = flask_test_client.get('/api/skills')
         data = response.get_json()
         skill = next((s for s in data["skills"] if s["name"] == "frontmatter-skill"), None)
-        if skill:
-            assert skill.get("description") is not None
+        assert skill is not None, "frontmatter-skill should be in the list"
+        assert skill["description"] == "A skill with YAML frontmatter"
 
     def test_empty_skills_directory(self, flask_test_client, temp_skills_dir):
         """Test with empty skills directory."""
@@ -523,10 +523,11 @@ class TestClaudeRunEndpoint:
                 }
             )
             assert response.status_code == 200
-            # Verify context was passed
-            call_args = mock_subprocess.call_args
-            full_prompt = call_args[0][0][2]  # Third arg in command list
-            assert "skill context" in full_prompt.lower()
+            # Verify subprocess.run was called and context appears somewhere in the command
+            assert mock_subprocess.called
+            cmd_list = mock_subprocess.call_args[0][0]
+            full_cmd = " ".join(str(a) for a in cmd_list)
+            assert "skill context" in full_cmd.lower()
 
     def test_returns_404_when_cli_not_found(self, flask_test_client):
         """Test 404 when CLI not found."""

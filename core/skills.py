@@ -2,12 +2,19 @@
 # Skills CRUD operations
 
 import json
+import logging
 import shutil
 import base64
 from pathlib import Path
 from typing import Any
 
+logger = logging.getLogger("skills-server")
+
 from .config import get_skills_dir
+from .security import (
+    is_safe_skill_name, validate_skill_path, validate_file_path,
+    sanitize_description, validate_upload_file,
+)
 from .utils import sanitize_name, extract_description_from_frontmatter, create_skill_markdown
 
 
@@ -31,8 +38,8 @@ def list_all_skills() -> list[dict[str, Any]]:
             try:
                 meta = json.loads(meta_file.read_text(encoding="utf-8"))
                 skill_data.update(meta)
-            except (json.JSONDecodeError, OSError):
-                pass  # Skip invalid metadata
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to read metadata for %s: %s", skill_dir.name, e)
 
         # Load content from SKILL.md
         skill_file = skill_dir / "SKILL.md"
@@ -46,8 +53,8 @@ def list_all_skills() -> list[dict[str, Any]]:
                     desc = extract_description_from_frontmatter(content)
                     if desc:
                         skill_data["description"] = desc
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning("Failed to read SKILL.md for %s: %s", skill_dir.name, e)
 
         # Add file structure info
         skill_data["has_scripts"] = (skill_dir / "scripts").exists()
@@ -66,8 +73,14 @@ def get_skill_by_name(name: str) -> tuple[dict[str, Any] | None, str | None]:
     Returns:
         Tuple of (skill_data, error_message)
     """
+    if not is_safe_skill_name(name):
+        return None, f"Invalid skill name: {name}"
+
     skills_dir = get_skills_dir()
     skill_dir = skills_dir / name
+
+    if not validate_skill_path(skill_dir):
+        return None, f"Invalid skill path: {name}"
 
     if not skill_dir.exists():
         return None, f"Skill '{name}' not found"
@@ -79,16 +92,16 @@ def get_skill_by_name(name: str) -> tuple[dict[str, Any] | None, str | None]:
     if meta_file.exists():
         try:
             skill_data.update(json.loads(meta_file.read_text(encoding="utf-8")))
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to read metadata for %s: %s", name, e)
 
     # Load content
     skill_file = skill_dir / "SKILL.md"
     if skill_file.exists():
         try:
             skill_data["content"] = skill_file.read_text(encoding="utf-8")
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("Failed to read SKILL.md for %s: %s", name, e)
 
     # List all files
     for f in skill_dir.rglob("*"):
@@ -116,11 +129,19 @@ def create_skill(
     if not name:
         return None, "Skill name is required"
 
+    if not is_safe_skill_name(name):
+        return None, f"Invalid skill name: {name}"
+
     skills_dir = get_skills_dir()
     skill_dir = skills_dir / name
 
+    if not validate_skill_path(skill_dir):
+        return None, f"Invalid skill path: {name}"
+
     if skill_dir.exists() and not overwrite:
         return None, f"Skill '{name}' already exists"
+
+    description = sanitize_description(description)
 
     skill_dir.mkdir(parents=True, exist_ok=True)
 
@@ -153,11 +174,19 @@ def update_skill(
     Returns:
         Tuple of (result_data, error_message)
     """
+    if not is_safe_skill_name(name):
+        return None, f"Invalid skill name: {name}"
+
     skills_dir = get_skills_dir()
     skill_dir = skills_dir / name
 
+    if not validate_skill_path(skill_dir):
+        return None, f"Invalid skill path: {name}"
+
     if not skill_dir.exists():
         return None, f"Skill '{name}' not found"
+
+    description = sanitize_description(description)
 
     # Write updated SKILL.md
     skill_md = create_skill_markdown(name, description, content)
@@ -169,8 +198,8 @@ def update_skill(
     if meta_file.exists():
         try:
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to read existing metadata for %s, starting fresh: %s", name, e)
 
     meta.update({
         "name": name,
@@ -189,8 +218,14 @@ def delete_skill(name: str) -> tuple[dict[str, Any] | None, str | None]:
     Returns:
         Tuple of (result_data, error_message)
     """
+    if not is_safe_skill_name(name):
+        return None, f"Invalid skill name: {name}"
+
     skills_dir = get_skills_dir()
     skill_dir = skills_dir / name
+
+    if not validate_skill_path(skill_dir):
+        return None, f"Invalid skill path: {name}"
 
     if not skill_dir.exists():
         return None, f"Skill '{name}' not found"
@@ -221,8 +256,14 @@ def import_folder(
 
     # Determine skill name
     skill_name = sanitize_name(new_name) if new_name else sanitize_name(source.name)
+    if not skill_name or not is_safe_skill_name(skill_name):
+        return None, f"Invalid skill name: {skill_name}"
+
     skills_dir = get_skills_dir()
     dest = skills_dir / skill_name
+
+    if not validate_skill_path(dest):
+        return None, f"Invalid skill path: {skill_name}"
 
     if dest.exists():
         return None, f"Skill '{skill_name}' already exists. Use overwrite option."
@@ -290,8 +331,15 @@ def import_files_json(
         return None, "Skill name is required"
 
     skill_name = sanitize_name(skill_name)
+    if not skill_name or not is_safe_skill_name(skill_name):
+        return None, f"Invalid skill name: {skill_name}"
+
     skills_dir = get_skills_dir()
     skill_dir = skills_dir / skill_name
+
+    if not validate_skill_path(skill_dir):
+        return None, f"Invalid skill path: {skill_name}"
+
     skill_dir.mkdir(parents=True, exist_ok=True)
 
     imported = []
@@ -301,12 +349,18 @@ def import_files_json(
         content = f.get("content", "")
         is_base64 = f.get("base64", False)
 
-        # Security: prevent path traversal and absolute path escape
-        if not file_path or ".." in file_path:
+        # Security: validate file path using shared validator
+        if not validate_file_path(file_path):
             continue
 
-        # Reject absolute paths (leading / or \ bypasses pathlib containment)
-        if file_path.startswith("/") or file_path.startswith("\\"):
+        # Validate file extension and size
+        content_size = len(content.encode('utf-8')) if isinstance(content, str) else len(content)
+        if is_base64:
+            # Base64 decodes to ~75% of encoded size
+            content_size = len(base64.b64decode(content))
+        upload_error = validate_upload_file(file_path, content_size)
+        if upload_error:
+            logger.warning("Upload rejected for %s: %s", file_path, upload_error)
             continue
 
         dest_path = skill_dir / file_path.replace("\\", "/")
@@ -319,8 +373,16 @@ def import_files_json(
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if is_base64:
-            dest_path.write_bytes(base64.b64decode(content))
+            decoded = base64.b64decode(content)
+            # Reject files with null bytes in content
+            if b'\x00' in decoded:
+                logger.warning("Rejected file with null bytes: %s", file_path)
+                continue
+            dest_path.write_bytes(decoded)
         else:
+            if '\x00' in content:
+                logger.warning("Rejected file with null bytes: %s", file_path)
+                continue
             dest_path.write_text(content, encoding="utf-8")
 
         imported.append(file_path)

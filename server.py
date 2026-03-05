@@ -17,6 +17,8 @@ if not logger.handlers:
     _handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(_handler)
 
+from core.security import is_safe_skill_name, validate_skill_path
+
 mcp = FastMCP("skills-server")
 SKILLS_DIR = Path(__file__).parent / "skills"
 
@@ -41,34 +43,15 @@ _CONTENT_INDEX_LOCK = Lock()
 _FILE_MTIMES_LOCK = Lock()
 _STATS_LOCK = Lock()
 
-# Schema for _meta.json validation
+# Schema for _meta.json validation (v1.1 — all five fields required)
 META_SCHEMA = {
-    "required": ["name", "description"],
-    "optional": ["tags", "sub_skills"],
+    "required": ["name", "description", "tags", "sub_skills", "source"],
+    "optional": [],
     "sub_skill_schema": {
         "required": ["name", "file"],
         "optional": ["triggers"]
     }
 }
-
-
-def is_safe_skill_name(name: str) -> bool:
-    """Validate that a skill name is safe for filesystem operations."""
-    if not name or not isinstance(name, str):
-        return False
-    # Only allow alphanumeric, hyphens, and underscores
-    return bool(re.match(r'^[a-zA-Z0-9\-_]+$', name))
-
-
-def validate_skill_path(skill_path: Path) -> bool:
-    """Validate that a resolved path is within SKILLS_DIR."""
-    try:
-        resolved_path = skill_path.resolve()
-        skills_dir_resolved = SKILLS_DIR.resolve()
-        resolved_path.relative_to(skills_dir_resolved)
-        return True
-    except (OSError, ValueError):
-        return False
 
 
 def validate_meta(meta: dict, skill_name: str) -> list[str]:
@@ -294,7 +277,7 @@ def file_watcher():
     global _INDEX
 
     logger.info("File watcher started")
-    while True:
+    while not _watcher_stop:
         try:
             if check_for_changes():
                 logger.info("Changes detected, reloading index...")
@@ -304,13 +287,31 @@ def file_watcher():
         except Exception as e:
             logger.error(f"File watcher error: {e}")
 
-        time.sleep(5)  # Check every 5 seconds
+        # Sleep in small increments to allow clean shutdown
+        for _ in range(50):
+            if _watcher_stop:
+                break
+            time.sleep(0.1)
+
+
+_watcher_thread = None
+_watcher_stop = False
 
 
 def start_watcher():
     """Start the file watcher in a background thread."""
+    global _watcher_thread, _watcher_stop
+    _watcher_stop = False
     _watcher_thread = Thread(target=file_watcher, daemon=True)
     _watcher_thread.start()
+
+
+def shutdown():
+    """Stop the file watcher and clean up background threads."""
+    global _watcher_stop
+    _watcher_stop = True
+    if _watcher_thread is not None and _watcher_thread.is_alive():
+        _watcher_thread.join(timeout=10)
 
 
 # Core functions (testable without MCP)
