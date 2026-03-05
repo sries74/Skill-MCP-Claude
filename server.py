@@ -9,12 +9,13 @@ import time
 import logging
 from collections import deque
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure module-specific logger (avoid claiming root logger)
 logger = logging.getLogger("skills-server")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(_handler)
 
 mcp = FastMCP("skills-server")
 SKILLS_DIR = Path(__file__).parent / "skills"
@@ -64,7 +65,8 @@ def validate_skill_path(skill_path: Path) -> bool:
     try:
         resolved_path = skill_path.resolve()
         skills_dir_resolved = SKILLS_DIR.resolve()
-        return str(resolved_path).startswith(str(skills_dir_resolved))
+        resolved_path.relative_to(skills_dir_resolved)
+        return True
     except (OSError, ValueError):
         return False
 
@@ -106,7 +108,7 @@ def build_content_index() -> dict:
         logger.warning(f"Skills directory does not exist: {SKILLS_DIR}")
         return index
 
-    for skill_dir in SKILLS_DIR.iterdir():
+    for skill_dir in sorted(SKILLS_DIR.iterdir()):
         if not skill_dir.is_dir():
             continue
 
@@ -141,20 +143,21 @@ def build_content_index() -> dict:
                 except (OSError, UnicodeDecodeError) as e:
                     logger.warning(f"Failed to read {ref_file}: {e}")
 
-        # Index scripts
+        # Index scripts (all common file types, not just .md)
         scripts_dir = skill_dir / "scripts"
         if scripts_dir.exists():
-            for script_file in scripts_dir.glob("*.md"):
-                try:
-                    content = script_file.read_text(encoding="utf-8", errors="ignore").lower()
-                    index[f"{skill_name}:scripts/{script_file.name}"] = {
-                        "domain": skill_name,
-                        "sub_skill": script_file.stem.replace('.js', '').replace('.ts', ''),
-                        "file": f"scripts/{script_file.name}",
-                        "content": content
-                    }
-                except (OSError, UnicodeDecodeError) as e:
-                    logger.warning(f"Failed to read {script_file}: {e}")
+            for ext in ("*.md", "*.py", "*.js", "*.ts", "*.jsx", "*.tsx"):
+                for script_file in scripts_dir.glob(ext):
+                    try:
+                        content = script_file.read_text(encoding="utf-8", errors="ignore").lower()
+                        index[f"{skill_name}:scripts/{script_file.name}"] = {
+                            "domain": skill_name,
+                            "sub_skill": script_file.stem,
+                            "file": f"scripts/{script_file.name}",
+                            "content": content
+                        }
+                    except (OSError, UnicodeDecodeError) as e:
+                        logger.warning(f"Failed to read {script_file}: {e}")
 
     return index
 
@@ -169,7 +172,7 @@ def load_index() -> dict:
         logger.error(f"Skills directory does not exist: {SKILLS_DIR}")
         return index
 
-    for skill_dir in SKILLS_DIR.iterdir():
+    for skill_dir in sorted(SKILLS_DIR.iterdir()):
         if skill_dir.is_dir():
             meta_file = skill_dir / "_meta.json"
             if meta_file.exists():
@@ -181,6 +184,15 @@ def load_index() -> dict:
                     if errors:
                         index["validation_errors"].extend(errors)
                         logger.warning(f"Validation errors in {skill_dir.name}: {errors}")
+                        # Skip skills missing required fields
+                        if any("Missing required field" in e for e in errors):
+                            continue
+
+                    # Defensive defaults for search safety
+                    meta.setdefault("name", skill_dir.name)
+                    meta.setdefault("description", "")
+                    meta.setdefault("tags", [])
+                    meta.setdefault("sub_skills", [])
 
                     index["skills"].append(meta)
                 except json.JSONDecodeError as e:
@@ -241,13 +253,16 @@ def check_for_changes() -> bool:
     if not SKILLS_DIR.exists():
         return False
 
+    # Only watch key metadata files to reduce I/O
+    WATCH_FILES = {"_meta.json", "SKILL.md"}
+
     with _FILE_MTIMES_LOCK:
-        for skill_dir in SKILLS_DIR.iterdir():
+        for skill_dir in sorted(SKILLS_DIR.iterdir()):
             if not skill_dir.is_dir():
                 continue
 
             for file in skill_dir.rglob("*"):
-                if file.is_file():
+                if file.is_file() and file.name in WATCH_FILES:
                     try:
                         mtime = file.stat().st_mtime
                         current_mtimes[str(file)] = mtime
@@ -292,9 +307,10 @@ def file_watcher():
         time.sleep(5)  # Check every 5 seconds
 
 
-# Start file watcher in background
-_watcher_thread = Thread(target=file_watcher, daemon=True)
-_watcher_thread.start()
+def start_watcher():
+    """Start the file watcher in a background thread."""
+    _watcher_thread = Thread(target=file_watcher, daemon=True)
+    _watcher_thread.start()
 
 
 # Core functions (testable without MCP)
@@ -490,9 +506,12 @@ def _search_content(query: str, limit: int = 10) -> dict:
     
     track_usage("search_content", {"query": query})
 
+    # Ensure index is loaded (acquires its own locks internally)
+    get_index()
+
     with _CONTENT_INDEX_LOCK:
         if _CONTENT_INDEX is None:
-            get_index()  # Ensure index is loaded
+            return {"error": "Content index not available", "results": []}
 
         query_lower = query.lower()
         results = []
@@ -609,7 +628,7 @@ def _validate_skills() -> dict:
     errors = []
     warnings = []
 
-    for skill_dir in SKILLS_DIR.iterdir():
+    for skill_dir in sorted(SKILLS_DIR.iterdir()):
         if not skill_dir.is_dir():
             continue
 
@@ -766,4 +785,5 @@ def validate_skills() -> dict:
 
 
 if __name__ == "__main__":
+    start_watcher()
     mcp.run()

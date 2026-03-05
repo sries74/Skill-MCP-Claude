@@ -16,6 +16,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import shutil
 import zipfile
@@ -159,7 +160,17 @@ def migrate_skill_archive(archive_path: Path, target_name: str = None) -> Path:
 
     try:
         with zipfile.ZipFile(archive_path, 'r') as zf:
-            zf.extractall(temp_dir)
+            # Zip Slip prevention: validate and extract each entry individually
+            # rather than extractall(), using relative_to() which correctly
+            # rejects sibling-prefix paths that startswith would miss.
+            target = temp_dir.resolve()
+            for entry in zf.namelist():
+                entry_path = (temp_dir / entry).resolve()
+                try:
+                    entry_path.relative_to(target)
+                except ValueError:
+                    raise ValueError(f"Zip entry escapes target directory: {entry}")
+                zf.extract(entry, temp_dir)
 
         # Find the skill directory (usually the first directory in the archive)
         extracted_dirs = [d for d in temp_dir.iterdir() if d.is_dir()]

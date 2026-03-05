@@ -17,6 +17,8 @@ except ImportError:
     put = blob_list = blob_delete = head = None
 
 BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
+API_TOKEN = os.environ.get('SKILLS_API_TOKEN', '')
+ALLOWED_ORIGIN = os.environ.get('ALLOWED_ORIGIN', 'http://localhost:3000')
 
 
 def _check_blob_configured():
@@ -276,11 +278,18 @@ class handler(BaseHTTPRequestHandler):
     def _send_response(self, data, status=200):
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
+
+    def _check_auth(self):
+        """Check bearer token for mutating requests."""
+        if not API_TOKEN:
+            return True  # No token configured = allow (local dev)
+        token = self.headers.get('Authorization', '').replace('Bearer ', '')
+        return token == API_TOKEN
 
     def do_OPTIONS(self):
         self._send_response({})
@@ -302,6 +311,9 @@ class handler(BaseHTTPRequestHandler):
             self._send_response({"error": "Not found"}, 404)
 
     def do_POST(self):
+        if not self._check_auth():
+            return self._send_response({"error": "Unauthorized"}, 401)
+
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
         data = json.loads(body) if body else {}
@@ -317,6 +329,9 @@ class handler(BaseHTTPRequestHandler):
             self._send_response({"error": "Not found"}, 404)
 
     def do_PUT(self):
+        if not self._check_auth():
+            return self._send_response({"error": "Unauthorized"}, 401)
+
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -333,6 +348,9 @@ class handler(BaseHTTPRequestHandler):
             self._send_response({"error": "Not found"}, 404)
 
     def do_DELETE(self):
+        if not self._check_auth():
+            return self._send_response({"error": "Unauthorized"}, 401)
+
         parsed = urlparse(self.path)
         path = parsed.path
 

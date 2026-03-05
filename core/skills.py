@@ -301,11 +301,21 @@ def import_files_json(
         content = f.get("content", "")
         is_base64 = f.get("base64", False)
 
-        # Security: prevent path traversal
+        # Security: prevent path traversal and absolute path escape
         if not file_path or ".." in file_path:
             continue
 
+        # Reject absolute paths (leading / or \ bypasses pathlib containment)
+        if file_path.startswith("/") or file_path.startswith("\\"):
+            continue
+
         dest_path = skill_dir / file_path.replace("\\", "/")
+
+        # Validate resolved path is inside skill_dir
+        try:
+            dest_path.resolve().relative_to(skill_dir.resolve())
+        except ValueError:
+            continue
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if is_base64:

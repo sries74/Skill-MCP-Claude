@@ -4,6 +4,12 @@
 import re
 from typing import Optional
 
+try:
+    import yaml
+    _HAS_YAML = True
+except ImportError:
+    _HAS_YAML = False
+
 
 def sanitize_name(name: str) -> str:
     """Convert name to valid skill directory name."""
@@ -27,6 +33,13 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
         frontmatter_text = content[3:end_index].strip()
         body = content[end_index + 3:].strip()
 
+        if _HAS_YAML:
+            frontmatter = yaml.safe_load(frontmatter_text) or {}
+            if not isinstance(frontmatter, dict):
+                return {}, content
+            return frontmatter, body
+
+        # Fallback: simple key: value parsing
         frontmatter = {}
         for line in frontmatter_text.split('\n'):
             if ':' in line:
@@ -34,7 +47,7 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
                 frontmatter[key.strip()] = value.strip()
 
         return frontmatter, body
-    except ValueError:
+    except (ValueError, Exception):
         return {}, content
 
 

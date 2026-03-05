@@ -2,6 +2,8 @@
 # HTTP API server for managing skills with Claude Code CLI integration
 # Refactored to use shared core module
 
+import functools
+import os
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from pathlib import Path
@@ -38,6 +40,16 @@ SKILLS_DIR = get_skills_dir()
 APP_DIR = get_app_dir()
 
 
+def require_json(f):
+    """Decorator to ensure request body is valid JSON."""
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if not request.is_json or request.json is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+        return f(*args, **kwargs)
+    return wrapper
+
+
 # ============ Static Files ============
 
 @app.route('/')
@@ -64,6 +76,7 @@ def api_get_skill(name: str):
 
 
 @app.route('/api/skills', methods=['POST'])
+@require_json
 def api_create_skill():
     """Create a new skill."""
     data = request.json
@@ -82,6 +95,7 @@ def api_create_skill():
 
 
 @app.route('/api/skills/<name>', methods=['PUT'])
+@require_json
 def api_update_skill(name: str):
     """Update an existing skill."""
     data = request.json
@@ -108,6 +122,7 @@ def api_delete_skill(name: str):
 # ============ Import ============
 
 @app.route('/api/import/folder', methods=['POST'])
+@require_json
 def api_import_folder():
     """Import a skill from a folder path on disk."""
     data = request.json
@@ -122,6 +137,7 @@ def api_import_folder():
 
 
 @app.route('/api/import/json', methods=['POST'])
+@require_json
 def api_import_files_json():
     """Import files via JSON with base64 content."""
     data = request.json
@@ -164,6 +180,7 @@ def api_claude_status():
 
 
 @app.route('/api/claude/run', methods=['POST'])
+@require_json
 def api_claude_run():
     """Run a prompt through Claude CLI."""
     data = request.json
@@ -178,6 +195,7 @@ def api_claude_run():
 
 
 @app.route('/api/claude/generate-skill', methods=['POST'])
+@require_json
 def api_claude_generate_skill():
     """Generate a skill using Claude CLI."""
     data = request.json
@@ -189,6 +207,7 @@ def api_claude_generate_skill():
 
 
 @app.route('/api/claude/improve-skill', methods=['POST'])
+@require_json
 def api_claude_improve_skill():
     """Improve an existing skill using Claude CLI."""
     data = request.json
@@ -222,4 +241,4 @@ if __name__ == "__main__":
   Browse:     RESTRICTED to skills/ directory
 ================================================================
 """)
-    app.run(port=5050, debug=True)
+    app.run(port=5050, debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true")

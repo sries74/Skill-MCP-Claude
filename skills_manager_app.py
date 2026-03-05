@@ -2,6 +2,7 @@
 # Standalone Skills Manager - All-in-one file for PyInstaller
 # Refactored to use shared core module
 
+import functools
 import subprocess
 import sys
 import os
@@ -10,15 +11,13 @@ import webbrowser
 import socket
 import threading
 
-# Try to import Flask
 try:
     from flask import Flask, jsonify, request, send_from_directory
     from flask_cors import CORS
 except ImportError:
-    print("Installing required packages...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "flask", "flask-cors"], check=True)
-    from flask import Flask, jsonify, request, send_from_directory
-    from flask_cors import CORS
+    print("ERROR: Missing required packages. Install with:")
+    print("  pip install flask flask-cors")
+    sys.exit(1)
 
 # Import from core module
 from core import (
@@ -57,6 +56,16 @@ CORS(app, origins=[
 ], supports_credentials=False)
 
 
+def require_json(f):
+    """Decorator to ensure request body is valid JSON."""
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if not request.is_json or request.json is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+        return f(*args, **kwargs)
+    return wrapper
+
+
 # ============ Routes ============
 
 @app.route('/')
@@ -80,6 +89,7 @@ def api_get_skill(name):
 
 
 @app.route('/api/skills', methods=['POST'])
+@require_json
 def api_create_skill():
     """Create a new skill."""
     data = request.json
@@ -97,6 +107,7 @@ def api_create_skill():
 
 
 @app.route('/api/skills/<name>', methods=['PUT'])
+@require_json
 def api_update_skill(name):
     """Update an existing skill."""
     data = request.json
@@ -121,6 +132,7 @@ def api_delete_skill(name):
 
 
 @app.route('/api/import/folder', methods=['POST'])
+@require_json
 def api_import_folder():
     """Import a skill from a folder path."""
     data = request.json
@@ -135,6 +147,7 @@ def api_import_folder():
 
 
 @app.route('/api/import/json', methods=['POST'])
+@require_json
 def api_import_files_json():
     """Import files via JSON."""
     data = request.json
@@ -169,6 +182,7 @@ def api_claude_status():
 
 
 @app.route('/api/claude/run', methods=['POST'])
+@require_json
 def api_claude_run():
     """Run a prompt through Claude CLI."""
     data = request.json
@@ -183,6 +197,7 @@ def api_claude_run():
 
 
 @app.route('/api/claude/generate-skill', methods=['POST'])
+@require_json
 def api_claude_generate_skill():
     """Generate a skill using Claude CLI."""
     data = request.json

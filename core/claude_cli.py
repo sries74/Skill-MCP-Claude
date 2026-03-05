@@ -60,7 +60,7 @@ def run_claude_prompt(
             timeout=120
         )
         return {
-            "success": True,
+            "success": result.returncode == 0,
             "stdout": result.stdout,
             "stderr": result.stderr,
             "returncode": result.returncode,

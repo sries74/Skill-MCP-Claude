@@ -259,13 +259,12 @@ class TestCheckForChanges:
 
     def test_detects_deleted_file(self, server_module, sample_skill):
         """Test detection of deleted files."""
-        # Create and track an extra file
-        extra_file = sample_skill / "extra.md"
-        extra_file.write_text("Extra content")
+        # Create and track a watched file (_meta.json already exists, use SKILL.md)
         server_module.check_for_changes()
 
-        # Delete the file
-        extra_file.unlink()
+        # Delete SKILL.md (a watched file)
+        skill_file = sample_skill / "SKILL.md"
+        skill_file.unlink()
 
         assert server_module.check_for_changes() is True
 

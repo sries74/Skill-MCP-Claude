@@ -16,59 +16,60 @@ class TestGetAppDir:
 
     def test_returns_file_parent_when_not_frozen(self):
         """Test returns __file__ parent when not frozen."""
-        import skills_manager_app as app_module
-        # In test environment, sys.frozen is not set
-        result = app_module.get_app_dir()
+        from core.config import get_app_dir
+        result = get_app_dir()
         assert isinstance(result, Path)
         assert result.exists()
 
     def test_returns_executable_parent_when_frozen(self):
         """Test returns executable parent when frozen (PyInstaller)."""
-        import skills_manager_app as app_module
+        import core.config as config
+        original = config._app_dir
+        config._app_dir = None  # Reset cache
         with patch.object(sys, 'frozen', True, create=True):
             with patch.object(sys, 'executable', '/path/to/app.exe'):
-                # Note: This tests the logic, actual frozen behavior differs
-                result = app_module.get_app_dir()
+                result = config.get_app_dir()
                 assert isinstance(result, Path)
+        config._app_dir = original
 
 
 class TestSanitizeName:
-    """Tests for sanitize_name function in app module."""
+    """Tests for sanitize_name function."""
 
     def test_lowercase(self):
         """Test that names are lowercased."""
-        import skills_manager_app as app
-        assert app.sanitize_name("MySkill") == "myskill"
+        from core.utils import sanitize_name
+        assert sanitize_name("MySkill") == "myskill"
 
     def test_replaces_special_chars(self):
         """Test that special characters are replaced."""
-        import skills_manager_app as app
-        assert app.sanitize_name("my_skill@v2") == "my-skill-v2"
+        from core.utils import sanitize_name
+        assert sanitize_name("my_skill@v2") == "my-skill-v2"
 
     def test_strips_hyphens(self):
         """Test that leading/trailing hyphens are stripped."""
-        import skills_manager_app as app
-        assert app.sanitize_name("--skill--") == "skill"
+        from core.utils import sanitize_name
+        assert sanitize_name("--skill--") == "skill"
 
 
 class TestFindClaudeCli:
-    """Tests for find_claude_cli function in app module."""
+    """Tests for find_claude_cli function."""
 
     def test_finds_via_which(self):
         """Test finding CLI via shutil.which."""
-        import skills_manager_app as app
+        from core.config import find_claude_cli
         with patch('shutil.which') as mock_which:
             mock_which.return_value = '/usr/bin/claude'
             with patch('os.path.exists', return_value=False):
-                result = app.find_claude_cli()
+                result = find_claude_cli()
                 assert result == '/usr/bin/claude'
 
     def test_returns_none_when_not_found(self):
         """Test returns None when not found."""
-        import skills_manager_app as app
+        from core.config import find_claude_cli
         with patch('shutil.which', return_value=None):
             with patch('os.path.exists', return_value=False):
-                result = app.find_claude_cli()
+                result = find_claude_cli()
                 assert result is None
 
 
@@ -313,42 +314,33 @@ class TestImportJsonEndpoint:
 
 
 class TestBrowseFilesystemEndpoint:
-    """Tests for GET /api/browse endpoint in app."""
+    """Tests for GET /api/browse endpoint in app (restricted to skills dir)."""
 
-    def test_browses_directory(self, flask_app_test_client, tmp_path):
-        """Test browsing a directory."""
-        (tmp_path / "subdir").mkdir()
-        (tmp_path / "file.txt").write_text("content")
-
-        response = flask_app_test_client.get(f'/api/browse?path={tmp_path}')
+    def test_browses_root(self, flask_app_test_client, sample_skill):
+        """Test browsing skills directory root."""
+        response = flask_app_test_client.get('/api/browse')
         assert response.status_code == 200
         data = response.get_json()
         assert "dirs" in data
         assert "files" in data
 
-    def test_returns_parent(self, flask_app_test_client, tmp_path):
-        """Test parent path is returned."""
-        subdir = tmp_path / "sub"
-        subdir.mkdir()
-
-        response = flask_app_test_client.get(f'/api/browse?path={subdir}')
+    def test_browses_skill_subdirectory(self, flask_app_test_client, sample_skill):
+        """Test browsing inside a skill directory."""
+        response = flask_app_test_client.get('/api/browse?path=test-skill')
+        assert response.status_code == 200
         data = response.get_json()
-        assert data["parent"] == str(tmp_path)
+        assert data["parent"] == ""
 
     def test_returns_404_for_missing(self, flask_app_test_client):
-        """Test 404 for missing path."""
-        response = flask_app_test_client.get('/api/browse?path=/nonexistent')
+        """Test 404 for missing relative path."""
+        response = flask_app_test_client.get('/api/browse?path=nonexistent-skill')
         assert response.status_code == 404
 
-    def test_identifies_skills(self, flask_app_test_client, tmp_path):
+    def test_identifies_skills(self, flask_app_test_client, sample_skill):
         """Test skill folder identification."""
-        skill_dir = tmp_path / "a-skill"
-        skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text("# Skill")
-
-        response = flask_app_test_client.get(f'/api/browse?path={tmp_path}')
+        response = flask_app_test_client.get('/api/browse')
         data = response.get_json()
-        skill_entry = next(d for d in data["dirs"] if d["name"] == "a-skill")
+        skill_entry = next(d for d in data["dirs"] if d["name"] == "test-skill")
         assert skill_entry["is_skill"] is True
 
 
@@ -357,7 +349,7 @@ class TestClaudeStatusEndpoint:
 
     def test_available(self, flask_app_test_client):
         """Test when CLI is available."""
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             with patch('subprocess.run') as mock_run:
                 mock_run.return_value.stdout = "Claude 1.0"
                 mock_run.return_value.stderr = ""
@@ -368,7 +360,7 @@ class TestClaudeStatusEndpoint:
 
     def test_unavailable(self, flask_app_test_client):
         """Test when CLI is not available."""
-        with patch('skills_manager_app.find_claude_cli', return_value=None):
+        with patch('core.claude_cli.find_claude_cli', return_value=None):
             response = flask_app_test_client.get('/api/claude/status')
             data = response.get_json()
             assert data["available"] is False
@@ -379,10 +371,11 @@ class TestClaudeRunEndpoint:
 
     def test_runs_prompt(self, flask_app_test_client):
         """Test running a prompt."""
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             with patch('subprocess.run') as mock_run:
                 mock_run.return_value.stdout = "Response"
                 mock_run.return_value.stderr = ""
+                mock_run.return_value.returncode = 0
                 response = flask_app_test_client.post('/api/claude/run',
                     json={"prompt": "Test"}
                 )
@@ -392,10 +385,11 @@ class TestClaudeRunEndpoint:
 
     def test_includes_context(self, flask_app_test_client):
         """Test skill context is included."""
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             with patch('subprocess.run') as mock_run:
                 mock_run.return_value.stdout = "Response"
                 mock_run.return_value.stderr = ""
+                mock_run.return_value.returncode = 0
                 response = flask_app_test_client.post('/api/claude/run',
                     json={
                         "prompt": "Help",
@@ -409,7 +403,7 @@ class TestClaudeRunEndpoint:
 
     def test_returns_404_without_cli(self, flask_app_test_client):
         """Test 404 when CLI not found."""
-        with patch('skills_manager_app.find_claude_cli', return_value=None):
+        with patch('core.claude_cli.find_claude_cli', return_value=None):
             response = flask_app_test_client.post('/api/claude/run',
                 json={"prompt": "Test"}
             )
@@ -418,7 +412,7 @@ class TestClaudeRunEndpoint:
     def test_handles_timeout(self, flask_app_test_client):
         """Test timeout handling."""
         import subprocess
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('cmd', 120)):
                 response = flask_app_test_client.post('/api/claude/run',
                     json={"prompt": "Test"}
@@ -431,7 +425,7 @@ class TestClaudeGenerateSkillEndpoint:
 
     def test_generates_skill(self, flask_app_test_client):
         """Test skill generation."""
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             with patch('subprocess.run') as mock_run:
                 mock_run.return_value.stdout = """---
 name: generated
@@ -449,7 +443,7 @@ description: Generated skill
 
     def test_requires_idea(self, flask_app_test_client):
         """Test that idea is required."""
-        with patch('skills_manager_app.find_claude_cli', return_value='/usr/bin/claude'):
+        with patch('core.claude_cli.find_claude_cli', return_value='/usr/bin/claude'):
             response = flask_app_test_client.post('/api/claude/generate-skill',
                 json={}
             )
@@ -457,7 +451,7 @@ description: Generated skill
 
     def test_returns_404_without_cli(self, flask_app_test_client):
         """Test 404 when CLI not found."""
-        with patch('skills_manager_app.find_claude_cli', return_value=None):
+        with patch('core.claude_cli.find_claude_cli', return_value=None):
             response = flask_app_test_client.post('/api/claude/generate-skill',
                 json={"idea": "Test"}
             )

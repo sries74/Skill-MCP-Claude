@@ -1,0 +1,10 @@
+{
+  "name": "new-skill",
+  "description": "A new test skill",
+  "tags": [
+    "new",
+    "test"
+  ],
+  "sub_skills": [],
+  "source": "created"
+}

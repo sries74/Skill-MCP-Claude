@@ -224,32 +224,35 @@ Building accessible HTML forms with validation.
 @pytest.fixture
 def flask_test_client(temp_skills_dir):
     """Create a Flask test client with patched skills directory."""
-    # Import and patch the API module
+    import core.config as config
     import skills_manager_api as api
 
-    # Patch the SKILLS_DIR
-    original_skills_dir = api.SKILLS_DIR
+    # Patch at the source: core.config._skills_dir
+    original_config_skills_dir = config._skills_dir
+    original_api_skills_dir = api.SKILLS_DIR
+    config._skills_dir = temp_skills_dir
     api.SKILLS_DIR = temp_skills_dir
 
-    # Create a test client
     api.app.config['TESTING'] = True
     client = api.app.test_client()
 
     yield client
 
-    # Restore original
-    api.SKILLS_DIR = original_skills_dir
+    config._skills_dir = original_config_skills_dir
+    api.SKILLS_DIR = original_api_skills_dir
 
 
 @pytest.fixture
 def flask_app_test_client(temp_skills_dir):
     """Create a Flask test client for the standalone app."""
+    import core.config as config
     import skills_manager_app as app_module
 
-    # Patch the directories
-    original_skills_dir = app_module.SKILLS_DIR
+    # Patch at the source: core.config._skills_dir
+    original_config_skills_dir = config._skills_dir
+    original_app_skills_dir = app_module.SKILLS_DIR
     original_app_dir = app_module.APP_DIR
-
+    config._skills_dir = temp_skills_dir
     app_module.SKILLS_DIR = temp_skills_dir
     app_module.APP_DIR = temp_skills_dir.parent
 
@@ -258,8 +261,8 @@ def flask_app_test_client(temp_skills_dir):
 
     yield client
 
-    # Restore originals
-    app_module.SKILLS_DIR = original_skills_dir
+    config._skills_dir = original_config_skills_dir
+    app_module.SKILLS_DIR = original_app_skills_dir
     app_module.APP_DIR = original_app_dir
 
 
