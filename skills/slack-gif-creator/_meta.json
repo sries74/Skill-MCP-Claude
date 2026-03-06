@@ -1,16 +1,16 @@
 {
   "name": "slack-gif-creator",
-  "description": "A toolkit providing utilities and knowledge for creating animated GIFs optimized for Slack. **Dimensions:**",
+  "description": "Toolkit for creating animated GIFs optimized for Slack, including utilities for dimensions, frame rates, color palettes, and file size optimization.",
   "tags": [
-    "ui",
-    "python",
-    "gif",
-    "validation",
-    "creator",
-    "examples",
-    "slack",
-    "forms"
+    "web",
+    "javascript",
+    "code-generation"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "internal-comms"
+  ]
 }

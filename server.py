@@ -43,10 +43,11 @@ _CONTENT_INDEX_LOCK = Lock()
 _FILE_MTIMES_LOCK = Lock()
 _STATS_LOCK = Lock()
 
-# Schema for _meta.json validation (v1.1 — all five fields required)
+# Schema for _meta.json validation (v1.2 — type field added)
 META_SCHEMA = {
-    "required": ["name", "description", "tags", "sub_skills", "source"],
-    "optional": [],
+    "required": ["name", "description", "tags", "sub_skills", "source", "type"],
+    "optional": ["depends_on", "enhances"],
+    "valid_types": ["template", "discipline", "router", "creative-engine"],
     "sub_skill_schema": {
         "required": ["name", "file"],
         "optional": ["triggers"]
@@ -64,6 +65,22 @@ def validate_meta(meta: dict, skill_name: str) -> list[str]:
 
     if "name" in meta and meta["name"] != skill_name:
         errors.append(f"{skill_name}: 'name' field ({meta['name']}) doesn't match directory name")
+
+    if "type" in meta:
+        if meta["type"] not in META_SCHEMA["valid_types"]:
+            errors.append(f"{skill_name}: Invalid type '{meta['type']}' (must be one of {META_SCHEMA['valid_types']})")
+
+    if "depends_on" in meta:
+        if not isinstance(meta["depends_on"], list):
+            errors.append(f"{skill_name}: 'depends_on' must be a list")
+        elif not all(isinstance(d, str) for d in meta["depends_on"]):
+            errors.append(f"{skill_name}: All depends_on entries must be strings")
+
+    if "enhances" in meta:
+        if not isinstance(meta["enhances"], list):
+            errors.append(f"{skill_name}: 'enhances' must be a list")
+        elif not all(isinstance(e, str) for e in meta["enhances"]):
+            errors.append(f"{skill_name}: All enhances entries must be strings")
 
     if "tags" in meta:
         if not isinstance(meta["tags"], list):
@@ -315,18 +332,32 @@ def shutdown():
 
 
 # Core functions (testable without MCP)
-def _list_skills() -> dict:
+def _list_skills(type_filter: str = None, tags_filter: list[str] = None) -> dict:
     """List all available skill domains with descriptions."""
     track_usage("list_skills")
     index = get_index()
+
+    skills = index["skills"]
+
+    # Filter by type if specified
+    if type_filter:
+        if type_filter not in META_SCHEMA["valid_types"]:
+            return {"error": f"Invalid type filter '{type_filter}'. Valid types: {META_SCHEMA['valid_types']}"}
+        skills = [s for s in skills if s.get("type") == type_filter]
+
+    # Filter by tags if specified (all tags must match)
+    if tags_filter:
+        skills = [s for s in skills if all(t in s.get("tags", []) for t in tags_filter)]
+
     return {
         "skills": [
             {
                 "name": s["name"],
+                "type": s.get("type", "template"),
                 "description": s["description"],
                 "sub_skills": [sub["name"] for sub in s.get("sub_skills", [])]
             }
-            for s in index["skills"]
+            for s in skills
         ]
     }
 
@@ -361,9 +392,12 @@ def _get_skill(name: str) -> dict:
 
     return {
         "name": name,
+        "type": meta.get("type", "template"),
         "content": content,
         "sub_skills": [sub["name"] for sub in meta.get("sub_skills", [])],
-        "has_references": (skill_dir / "references").exists()
+        "has_references": (skill_dir / "references").exists(),
+        "depends_on": meta.get("depends_on", []),
+        "enhances": meta.get("enhances", []),
     }
 
 
@@ -424,6 +458,50 @@ def _get_skills_batch(requests: list[dict]) -> dict:
     return {"results": results}
 
 
+def _get_skill_chain(name: str) -> dict:
+    """Resolve the full dependency tree for a skill."""
+    if not is_safe_skill_name(name):
+        return {"error": f"Invalid skill name: {name}"}
+
+    track_usage("get_skill_chain", {"domain": name})
+    index = get_index()
+
+    # Build lookup
+    skill_map = {s["name"]: s for s in index["skills"]}
+    if name not in skill_map:
+        return {"error": f"Skill '{name}' not found"}
+
+    # Resolve transitive dependencies (BFS)
+    visited = set()
+    queue = [name]
+    chain = []
+    circular = False
+
+    while queue:
+        current = queue.pop(0)
+        if current in visited:
+            circular = True
+            continue
+        visited.add(current)
+
+        if current in skill_map:
+            deps = skill_map[current].get("depends_on", [])
+            for dep in deps:
+                queue.append(dep)
+            if current != name:
+                chain.append(current)
+
+    skill = skill_map[name]
+    return {
+        "name": name,
+        "type": skill.get("type", "template"),
+        "depends_on": skill.get("depends_on", []),
+        "dependency_chain": chain,
+        "enhances": skill.get("enhances", []),
+        "circular_dependency_detected": circular,
+    }
+
+
 def _search_skills(query: str, limit: int = 5) -> dict:
     """Search skills by keyword/phrase."""
     # Validate query
@@ -457,13 +535,26 @@ def _search_skills(query: str, limit: int = 5) -> dict:
             score = 0.8
             match_type = "tags"
 
+        # Boost if query matches the skill type
+        if query_lower in (skill.get("type") or ""):
+            if score == 0:
+                score = 0.75
+                match_type = "type"
+            else:
+                score += 0.1
+
         if score > 0:
-            results.append({
+            result_entry = {
                 "domain": skill["name"],
+                "type": skill.get("type", "template"),
                 "sub_skill": None,
                 "score": score,
-                "match": match_type
-            })
+                "match": match_type,
+            }
+            enhances = skill.get("enhances", [])
+            if enhances:
+                result_entry["suggested_companions"] = enhances
+            results.append(result_entry)
 
         # Check sub-skill matches
         for sub in skill.get("sub_skills", []):
@@ -677,13 +768,17 @@ def _validate_skills() -> dict:
 
 # MCP Tool wrappers
 @mcp.tool()
-def list_skills() -> dict:
+def list_skills(type: str = None, tags: list[str] = None) -> dict:
     """
     List all available skill domains with descriptions.
     Use this to understand what skills exist before loading specific content.
-    Returns domain names, descriptions, and available sub-skills.
+    Returns domain names, types, descriptions, and available sub-skills.
+
+    Args:
+        type: Filter by skill type: "template", "discipline", "router", or "creative-engine"
+        tags: Filter by tags (all must match). E.g., ["react", "forms"]
     """
-    return _list_skills()
+    return _list_skills(type_filter=type, tags_filter=tags)
 
 
 @mcp.tool()
@@ -727,6 +822,19 @@ def get_skills_batch(requests: list[dict]) -> dict:
         ]
     """
     return _get_skills_batch(requests)
+
+
+@mcp.tool()
+def get_skill_chain(name: str) -> dict:
+    """
+    Get the full dependency tree for a skill.
+    Resolves transitive dependencies: if A depends on B and B depends on C,
+    returns both B and C. Also returns enhancement suggestions.
+
+    Args:
+        name: Skill name to resolve dependencies for
+    """
+    return _get_skill_chain(name)
 
 
 @mcp.tool()

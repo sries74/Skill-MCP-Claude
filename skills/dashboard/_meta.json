@@ -2,13 +2,9 @@
   "name": "dashboard",
   "description": "Data dashboard development patterns including charts, real-time updates, filtering, and responsive layouts for analytics applications.",
   "tags": [
-    "dashboard",
-    "charts",
-    "analytics",
-    "data-viz",
-    "real-time",
-    "D3",
-    "recharts"
+    "data-visualization",
+    "web",
+    "routing"
   ],
   "sub_skills": [
     {
@@ -43,5 +39,10 @@
       ]
     }
   ],
-  "source": "unknown"
+  "source": "claude-user",
+  "type": "router",
+  "depends_on": [],
+  "enhances": [
+    "d3js-visualization"
+  ]
 }

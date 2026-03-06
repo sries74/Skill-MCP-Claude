@@ -3,14 +3,15 @@
   "description": "- Every Excel model MUST be delivered with ZERO formula errors (#REF!, #DIV/0!, #VALUE!, #N/A, #NAME?) - Study and EXACTLY match existing format, style, and conventions when modifying files",
   "tags": [
     "documentation",
-    "ui",
-    "ux",
     "python",
-    "xlsx",
-    "public",
-    "spreadsheet",
-    "forms"
+    "code-generation"
   ],
   "sub_skills": [],
-  "source": "claude-public"
+  "source": "claude-public",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "d3js-visualization",
+    "scientific-documentation"
+  ]
 }

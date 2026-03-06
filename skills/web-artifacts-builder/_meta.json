@@ -2,16 +2,17 @@
   "name": "web-artifacts-builder",
   "description": "To build powerful frontend claude.ai artifacts, follow these steps: 1. Initialize the frontend repo using `scripts/init-artifact.sh`",
   "tags": [
+    "web",
     "react",
     "javascript",
-    "typescript",
-    "css",
-    "artifacts",
-    "components",
-    "html",
-    "ui",
-    "examples"
+    "scaffolding"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "frontend-design",
+    "component-library"
+  ]
 }

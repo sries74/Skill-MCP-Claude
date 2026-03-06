@@ -2,12 +2,14 @@
   "name": "internal-comms",
   "description": "To write internal communications, use this skill for: - 3P updates (Progress, Plans, Problems)",
   "tags": [
-    "ui",
-    "internal",
-    "comms",
-    "examples",
-    "forms"
+    "documentation",
+    "content-creation"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "doc-coauthoring"
+  ]
 }

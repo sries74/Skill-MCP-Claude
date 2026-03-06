@@ -1,7 +1,18 @@
 {
   "name": "subagent-driven-development",
   "description": "Use when executing implementation plans. Dispatches independent subagents for individual tasks with code review checkpoints between iterations for rapid, controlled development.",
-  "tags": [],
+  "tags": [
+    "process",
+    "workflow"
+  ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "discipline",
+  "depends_on": [
+    "writing-plans"
+  ],
+  "enhances": [
+    "writing-plans",
+    "test-driven-development"
+  ]
 }

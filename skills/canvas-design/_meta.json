@@ -2,14 +2,19 @@
   "name": "canvas-design",
   "description": "To begin, create a VISUAL PHILOSOPHY (not layouts or templates) that will be interpreted through: - Form, space, color, composition",
   "tags": [
-    "ui",
-    "examples",
-    "forms",
-    "pdf",
-    "design",
-    "canvas",
-    "game"
+    "ui-design",
+    "css",
+    "html",
+    "design"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "creative-engine",
+  "depends_on": [],
+  "enhances": [
+    "pptx",
+    "pdf",
+    "brand-guidelines",
+    "slack-gif-creator"
+  ]
 }

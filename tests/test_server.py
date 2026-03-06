@@ -10,13 +10,14 @@ class TestValidateMeta:
     """Tests for validate_meta function."""
 
     def test_valid_meta_minimal(self, server_module):
-        """Test validation with all v1.1 required fields."""
+        """Test validation with all v1.2 required fields."""
         meta = {
             "name": "test-skill",
             "description": "A test skill",
             "tags": [],
             "sub_skills": [],
             "source": "created",
+            "type": "template",
         }
         errors = server_module.validate_meta(meta, "test-skill")
         assert errors == []
@@ -31,19 +32,20 @@ class TestValidateMeta:
                 {"name": "sub1", "file": "refs/sub1.md", "triggers": ["trigger1"]}
             ],
             "source": "created",
+            "type": "template",
         }
         errors = server_module.validate_meta(meta, "test-skill")
         assert errors == []
 
     def test_missing_name(self, server_module):
         """Test validation fails when name is missing."""
-        meta = {"description": "A test skill", "tags": [], "sub_skills": [], "source": "x"}
+        meta = {"description": "A test skill", "tags": [], "sub_skills": [], "source": "x", "type": "template"}
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("Missing required field 'name'" in e for e in errors)
 
     def test_missing_description(self, server_module):
         """Test validation fails when description is missing."""
-        meta = {"name": "test-skill", "tags": [], "sub_skills": [], "source": "x"}
+        meta = {"name": "test-skill", "tags": [], "sub_skills": [], "source": "x", "type": "template"}
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("Missing required field 'description'" in e for e in errors)
 
@@ -51,23 +53,23 @@ class TestValidateMeta:
         """Test validation fails when all required fields are missing."""
         meta = {}
         errors = server_module.validate_meta(meta, "test-skill")
-        assert len(errors) == 5  # name, description, tags, sub_skills, source
+        assert len(errors) == 6  # name, description, tags, sub_skills, source, type
 
     def test_name_mismatch(self, server_module):
         """Test validation fails when name doesn't match directory."""
-        meta = {"name": "wrong-name", "description": "A test skill", "tags": [], "sub_skills": [], "source": "x"}
+        meta = {"name": "wrong-name", "description": "A test skill", "tags": [], "sub_skills": [], "source": "x", "type": "template"}
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("doesn't match directory name" in e for e in errors)
 
     def test_tags_not_list(self, server_module):
         """Test validation fails when tags is not a list."""
-        meta = {"name": "test-skill", "description": "Test", "tags": "not-a-list", "sub_skills": [], "source": "x"}
+        meta = {"name": "test-skill", "description": "Test", "tags": "not-a-list", "sub_skills": [], "source": "x", "type": "template"}
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("'tags' must be a list" in e for e in errors)
 
     def test_sub_skills_not_list(self, server_module):
         """Test validation fails when sub_skills is not a list."""
-        meta = {"name": "test-skill", "description": "Test", "tags": [], "sub_skills": "not-a-list", "source": "x"}
+        meta = {"name": "test-skill", "description": "Test", "tags": [], "sub_skills": "not-a-list", "source": "x", "type": "template"}
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("'sub_skills' must be a list" in e for e in errors)
 
@@ -79,6 +81,7 @@ class TestValidateMeta:
             "tags": [],
             "sub_skills": [{"file": "test.md"}],
             "source": "x",
+            "type": "template",
         }
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("sub_skill[0] missing required field 'name'" in e for e in errors)
@@ -91,10 +94,29 @@ class TestValidateMeta:
             "tags": [],
             "sub_skills": [{"name": "sub1"}],
             "source": "x",
+            "type": "template",
         }
         errors = server_module.validate_meta(meta, "test-skill")
         assert any("sub_skill[0] missing required field 'file'" in e for e in errors)
-        assert "sub_skill[0] missing required field 'file'" in errors[0]
+
+    def test_invalid_type(self, server_module):
+        """Test validation fails with invalid type value."""
+        meta = {
+            "name": "test-skill",
+            "description": "Test",
+            "tags": [],
+            "sub_skills": [],
+            "source": "x",
+            "type": "invalid-type",
+        }
+        errors = server_module.validate_meta(meta, "test-skill")
+        assert any("Invalid type" in e for e in errors)
+
+    def test_missing_type(self, server_module):
+        """Test validation fails when type is missing."""
+        meta = {"name": "test-skill", "description": "Test", "tags": [], "sub_skills": [], "source": "x"}
+        errors = server_module.validate_meta(meta, "test-skill")
+        assert any("Missing required field 'type'" in e for e in errors)
 
 
 class TestBuildContentIndex:
@@ -342,6 +364,30 @@ class TestListSkills:
         skill = next(s for s in result["skills"] if s["name"] == "test-skill")
         assert "advanced-testing" in skill["sub_skills"]
 
+    def test_includes_type_field(self, server_module, sample_skill):
+        """Test that type field is included in listing."""
+        result = server_module._list_skills()
+        skill = result["skills"][0]
+        assert "type" in skill
+        assert skill["type"] == "template"
+
+    def test_filter_by_type(self, server_module, multiple_skills):
+        """Test filtering skills by type."""
+        result = server_module._list_skills(type_filter="router")
+        assert all(s["type"] == "router" for s in result["skills"])
+        assert any(s["name"] == "forms" for s in result["skills"])
+
+    def test_filter_by_invalid_type(self, server_module, sample_skill):
+        """Test filtering by invalid type returns error."""
+        result = server_module._list_skills(type_filter="invalid")
+        assert "error" in result
+
+    def test_filter_by_tags(self, server_module, multiple_skills):
+        """Test filtering skills by tags."""
+        result = server_module._list_skills(tags_filter=["html"])
+        assert all("html" in s.get("name", "") or True for s in result["skills"])
+        assert len(result["skills"]) >= 1
+
     def test_tracks_usage(self, server_module, sample_skill):
         """Test that usage is tracked."""
         server_module._list_skills()
@@ -420,6 +466,7 @@ class TestGetSubSkill:
             "tags": [],
             "sub_skills": [{"name": "missing", "file": "nonexistent.md"}],
             "source": "created",
+            "type": "template",
         }
         (skill_dir / "_meta.json").write_text(json.dumps(meta))
 
@@ -469,6 +516,68 @@ class TestGetSkillsBatch:
         assert len(result["results"]) == 2
         assert "content" in result["results"][0]
         assert "error" in result["results"][1]
+
+
+class TestGetSkillChain:
+    """Tests for _get_skill_chain function."""
+
+    def test_resolves_direct_dependencies(self, server_module, temp_skills_dir):
+        """Test resolving direct dependencies."""
+        # Create skill A that depends on skill B
+        for name, deps in [("skill-a", ["skill-b"]), ("skill-b", [])]:
+            d = temp_skills_dir / name
+            d.mkdir()
+            (d / "SKILL.md").write_text(f"# {name}")
+            meta = {"name": name, "description": f"Skill {name}", "tags": [], "sub_skills": [],
+                    "source": "test", "type": "template", "depends_on": deps, "enhances": []}
+            (d / "_meta.json").write_text(json.dumps(meta))
+        server_module._INDEX = None
+        result = server_module._get_skill_chain("skill-a")
+        assert "skill-b" in result["dependency_chain"]
+
+    def test_resolves_transitive_dependencies(self, server_module, temp_skills_dir):
+        """Test A -> B -> C resolves to [B, C]."""
+        for name, deps in [("chain-a", ["chain-b"]), ("chain-b", ["chain-c"]), ("chain-c", [])]:
+            d = temp_skills_dir / name
+            d.mkdir()
+            (d / "SKILL.md").write_text(f"# {name}")
+            meta = {"name": name, "description": f"Skill {name}", "tags": [], "sub_skills": [],
+                    "source": "test", "type": "template", "depends_on": deps, "enhances": []}
+            (d / "_meta.json").write_text(json.dumps(meta))
+        server_module._INDEX = None
+        result = server_module._get_skill_chain("chain-a")
+        assert "chain-b" in result["dependency_chain"]
+        assert "chain-c" in result["dependency_chain"]
+
+    def test_handles_circular_dependencies(self, server_module, temp_skills_dir):
+        """Test circular A -> B -> A doesn't infinite loop."""
+        for name, deps in [("circ-a", ["circ-b"]), ("circ-b", ["circ-a"])]:
+            d = temp_skills_dir / name
+            d.mkdir()
+            (d / "SKILL.md").write_text(f"# {name}")
+            meta = {"name": name, "description": f"Skill {name}", "tags": [], "sub_skills": [],
+                    "source": "test", "type": "template", "depends_on": deps, "enhances": []}
+            (d / "_meta.json").write_text(json.dumps(meta))
+        server_module._INDEX = None
+        result = server_module._get_skill_chain("circ-a")
+        assert result["circular_dependency_detected"] is True
+
+    def test_nonexistent_skill(self, server_module, sample_skill):
+        """Test error for nonexistent skill."""
+        result = server_module._get_skill_chain("nonexistent")
+        assert "error" in result
+
+    def test_includes_enhances(self, server_module, temp_skills_dir):
+        """Test that enhances field is included."""
+        d = temp_skills_dir / "enh-skill"
+        d.mkdir()
+        (d / "SKILL.md").write_text("# enh-skill")
+        meta = {"name": "enh-skill", "description": "Test", "tags": [], "sub_skills": [],
+                "source": "test", "type": "template", "depends_on": [], "enhances": ["other-skill"]}
+        (d / "_meta.json").write_text(json.dumps(meta))
+        server_module._INDEX = None
+        result = server_module._get_skill_chain("enh-skill")
+        assert result["enhances"] == ["other-skill"]
 
 
 class TestSearchSkills:

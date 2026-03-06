@@ -1,7 +1,19 @@
 {
   "name": "brainstorming",
   "description": "Use when starting any feature, project, or design work. Guides collaborative design refinement through incremental questioning before any code is written.",
-  "tags": [],
+  "tags": [
+    "process",
+    "planning"
+  ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "discipline",
+  "depends_on": [
+    "using-git-worktrees",
+    "writing-plans"
+  ],
+  "enhances": [
+    "writing-plans",
+    "doc-coauthoring"
+  ]
 }

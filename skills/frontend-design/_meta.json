@@ -1,17 +1,21 @@
 {
   "name": "frontend-design",
-  "description": "Before coding, understand the context and commit to a BOLD aesthetic direction: - **Purpose**: What problem does this interface solve? Who uses it?",
+  "description": "Design-first frontend development workflow. Before coding, understand context and commit to a bold aesthetic direction covering purpose, audience, and visual language.",
   "tags": [
-    "react",
-    "accessibility",
+    "ui-design",
     "css",
-    "ui",
-    "components",
-    "ux",
-    "html",
-    "public",
-    "forms"
+    "design"
   ],
   "sub_skills": [],
-  "source": "claude-public"
+  "source": "claude-public",
+  "type": "creative-engine",
+  "depends_on": [],
+  "enhances": [
+    "component-library",
+    "form-react",
+    "form-vue",
+    "form-vanilla",
+    "web-artifacts-builder",
+    "d3js-visualization"
+  ]
 }

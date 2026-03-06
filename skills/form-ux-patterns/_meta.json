@@ -2,16 +2,17 @@
   "name": "form-ux-patterns",
   "description": "Patterns for complex forms based on cognitive load research and aviation UX principles. // Multi-step form with chunking",
   "tags": [
-    "react",
-    "css",
-    "typescript",
-    "ui",
-    "components",
-    "ux",
-    "html",
-    "validation",
-    "user"
+    "forms",
+    "ui-design",
+    "code-generation"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "form-react",
+    "form-vue",
+    "form-vanilla"
+  ]
 }

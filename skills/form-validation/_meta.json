@@ -2,16 +2,17 @@
   "name": "form-validation",
   "description": "Schema-first validation using Zod as the single source of truth for both runtime validation and TypeScript types. import { z } from 'zod';",
   "tags": [
-    "react",
-    "api",
+    "forms",
     "typescript",
-    "ui",
-    "components",
-    "ux",
-    "validation",
-    "form",
-    "user"
+    "validation"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "form-react",
+    "form-vue",
+    "form-vanilla"
+  ]
 }

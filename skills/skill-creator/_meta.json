@@ -2,16 +2,14 @@
   "name": "skill-creator",
   "description": "This skill provides guidance for creating effective skills. Skills are modular, self-contained packages that extend Claude's capabilities by providing",
   "tags": [
-    "react",
-    "api",
-    "documentation",
-    "skill",
-    "ui",
-    "python",
-    "html",
-    "database",
-    "examples"
+    "meta-tooling",
+    "scaffolding"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "router-template"
+  ]
 }

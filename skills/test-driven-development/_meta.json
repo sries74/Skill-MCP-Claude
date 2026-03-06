@@ -1,7 +1,14 @@
 {
   "name": "test-driven-development",
   "description": "Use when implementing any feature or bugfix, before writing implementation code. Enforces RED-GREEN-REFACTOR cycle with strict discipline against rationalization.",
-  "tags": ["development", "testing", "tdd", "community"],
+  "tags": [
+    "testing",
+    "process",
+    "workflow"
+  ],
   "sub_skills": [],
-  "source": "obra/superpowers"
+  "source": "obra/superpowers",
+  "type": "discipline",
+  "depends_on": [],
+  "enhances": []
 }

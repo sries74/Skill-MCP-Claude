@@ -1,16 +1,19 @@
 {
   "name": "doc-coauthoring",
-  "description": "This skill provides a structured workflow for guiding users through collaborative document creation. Act as an active guide, walking users through three stages: Context Gathering, Refinement & Structure, and Reader Testing. **Trigger conditions:**",
+  "description": "Structured workflow for collaborative document creation. Guides users through context gathering, refinement and structuring, and final polish stages.",
   "tags": [
-    "mcp",
     "documentation",
-    "ui",
-    "doc",
-    "examples",
-    "forms",
-    "design",
-    "coauthoring"
+    "content-creation",
+    "workflow"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "discipline",
+  "depends_on": [],
+  "enhances": [
+    "scientific-documentation",
+    "internal-comms",
+    "pptx",
+    "docx"
+  ]
 }

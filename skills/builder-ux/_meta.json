@@ -2,16 +2,17 @@
   "name": "builder-ux",
   "description": "Prefabs, blueprints, undo/redo, selection, and preview systems for building mechanics. import { BlueprintManager } from './scripts/blueprint-manager.js';",
   "tags": [
-    "javascript",
-    "ux",
-    "ui",
-    "validation",
-    "builder",
-    "user",
-    "forms",
-    "threejs",
-    "design"
+    "building-game",
+    "ui-design",
+    "code-generation"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "3d-building-advanced",
+    "structural-physics",
+    "multiplayer-building"
+  ]
 }

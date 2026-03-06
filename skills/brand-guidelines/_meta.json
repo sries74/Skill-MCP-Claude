@@ -1,16 +1,21 @@
 {
   "name": "brand-guidelines",
-  "description": "To access Anthropic's official brand identity and style resources, use this skill. **Keywords**: branding, corporate identity, visual identity, post-processing, styling, brand colors, typography, Anthropic brand, visual formatting, visual design",
+  "description": "Access Anthropic official brand identity and style resources including branding, corporate identity, visual identity, brand colors, typography, and usage guidelines.",
   "tags": [
-    "ui",
-    "python",
-    "brand",
-    "guidelines",
-    "pptx",
-    "examples",
-    "forms",
-    "design"
+    "ui-design",
+    "reference"
   ],
   "sub_skills": [],
-  "source": "claude-examples"
+  "source": "claude-examples",
+  "type": "discipline",
+  "depends_on": [],
+  "enhances": [
+    "pptx",
+    "docx",
+    "frontend-design",
+    "component-library",
+    "theme-factory",
+    "web-artifacts-builder",
+    "slack-gif-creator"
+  ]
 }

@@ -2,16 +2,18 @@
   "name": "component-library",
   "description": "Generate production-ready React components with shadcn/ui patterns, saving 8-10 hours per project. When generating components:",
   "tags": [
+    "web",
     "react",
-    "accessibility",
-    "css",
     "typescript",
-    "component",
-    "documentation",
-    "html",
-    "validation",
-    "user"
+    "scaffolding"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "form-react",
+    "web-artifacts-builder",
+    "d3js-visualization"
+  ]
 }

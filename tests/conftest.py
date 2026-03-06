@@ -66,6 +66,7 @@ print("Hello, test!")
             }
         ],
         "source": "created",
+        "type": "template",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -109,6 +110,7 @@ Just a basic skill.
         "tags": [],
         "sub_skills": [],
         "source": "created",
+        "type": "template",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -150,6 +152,7 @@ def sample_skill_missing_skill_md(temp_skills_dir):
         "tags": [],
         "sub_skills": [],
         "source": "created",
+        "type": "template",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -180,6 +183,7 @@ This skill has YAML frontmatter.
         "tags": ["yaml", "frontmatter"],
         "sub_skills": [],
         "source": "created",
+        "type": "template",
     }
     (skill_dir / "_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -207,6 +211,7 @@ Building accessible HTML forms with validation.
             {"name": "validation", "file": "references/validation.md", "triggers": ["zod", "yup", "validate"]}
         ],
         "source": "created",
+        "type": "router",
     }
     (forms_dir / "_meta.json").write_text(json.dumps(forms_meta, indent=2), encoding="utf-8")
     refs = forms_dir / "references"
@@ -227,6 +232,7 @@ Building accessible HTML forms with validation.
         "tags": ["3d", "game-dev", "placement"],
         "sub_skills": [],
         "source": "created",
+        "type": "template",
     }
     (building_dir / "_meta.json").write_text(json.dumps(building_meta, indent=2), encoding="utf-8")
 

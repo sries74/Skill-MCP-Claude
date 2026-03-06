@@ -2,15 +2,17 @@
   "name": "performance-at-scale",
   "description": "Spatial indexing and world streaming for large-scale building systems. import { SpatialHashGrid } from './scripts/spatial-hash-grid.js';",
   "tags": [
-    "javascript",
-    "ui",
-    "performance",
-    "scale",
-    "user",
-    "forms",
-    "threejs",
-    "game"
+    "3d",
+    "three.js",
+    "optimization"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "multiplayer-building",
+    "structural-physics",
+    "3d-building-advanced"
+  ]
 }

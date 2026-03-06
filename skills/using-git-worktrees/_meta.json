@@ -1,7 +1,16 @@
 {
   "name": "using-git-worktrees",
   "description": "Use when starting new feature work to create isolated git worktrees with smart directory selection and safety verification. Keeps main branch clean while developing.",
-  "tags": [],
+  "tags": [
+    "process",
+    "workflow"
+  ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "discipline",
+  "depends_on": [],
+  "enhances": [
+    "subagent-driven-development",
+    "writing-plans"
+  ]
 }

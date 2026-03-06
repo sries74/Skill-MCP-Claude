@@ -1,16 +1,15 @@
 {
   "name": "router-template",
-  "description": "Routes to N specialized skills based on task requirements. 1. **Classify** \u2014 Identify primary task type from user request",
+  "description": "Template for creating router skills that classify user requests and dispatch to specialized sub-skills based on task type and requirements.",
   "tags": [
-    "react",
-    "accessibility",
-    "ui",
-    "template",
-    "router",
-    "user",
-    "forms",
-    "vue"
+    "meta-tooling",
+    "scaffolding"
   ],
   "sub_skills": [],
-  "source": "claude-user"
+  "source": "claude-user",
+  "type": "template",
+  "depends_on": [],
+  "enhances": [
+    "skill-creator"
+  ]
 }
